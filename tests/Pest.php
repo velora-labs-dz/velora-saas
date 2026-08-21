@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature');
+    ->in('Feature', 'Security');
 
 /*
 |--------------------------------------------------------------------------
@@ -47,4 +47,25 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * OrganizationMember is deliberately not mass-assignable (see the model),
+ * so tests build rows through this helper instead of a factory.
+ */
+function addOrganizationMember(
+    \App\Models\Organization $organization,
+    \App\Models\User $user,
+    \App\Enums\OrganizationRole $role = \App\Enums\OrganizationRole::Owner,
+    bool $isActive = true,
+): \App\Models\OrganizationMember {
+    $member = new \App\Models\OrganizationMember();
+    $member->organization_id = $organization->id;
+    $member->user_id = $user->id;
+    $member->role = $role;
+    $member->is_active = $isActive;
+    $member->joined_at = now();
+    $member->save();
+
+    return $member;
 }

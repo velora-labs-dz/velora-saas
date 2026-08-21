@@ -53,3 +53,14 @@ A decision belongs here only when it changes architecture, domain modeling, infr
 **Decision:** Build the landing page as a pixel-accurate reference/recreation of the current Nexora landing experience before returning to Organizations + Tenancy.
 
 **Reason:** The landing page is an independent presentation task and does not alter the backend architecture.
+
+## ADR-009 — Organization public identifier is the slug, not a new PK strategy
+
+**Date:** 2026-08-21
+
+**Decision:** `organizations.id` remains a standard auto-incrementing bigint. The slug (already a required field in `DATABASE_SCHEMA.md`) is used as the route/public-facing identifier (`getRouteKeyName()` returns `slug`; URLs are `/organizations/{slug}`), and the numeric id is never exposed in a route.
+
+**Reason:** `DATABASE_SCHEMA.md` §1 flags "ULID/UUID strategy decided before public identifiers are exposed" as an open question. Introducing ULIDs/UUIDs now would be a real PK-type change across the schema with no immediate need — the slug already satisfies the actual requirement (don't expose a guessable sequential id) without that migration. If a future requirement needs globally-unique, sortable, or externally-generated identifiers (e.g. public API resource ids), ULID/UUID adoption should be revisited as its own ADR at that time.
+
+**Consequences:** Route-model binding uses slug everywhere for `Organization`. Internal foreign keys (`organization_id` on child tables) continue to reference the bigint id as normal — this decision only affects what's exposed in URLs, not the internal schema.
+
