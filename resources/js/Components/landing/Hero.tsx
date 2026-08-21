@@ -1,7 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { ArrowRight } from "lucide-react";
 import { useReveal } from "./useReveal";
-import { BrowserFrame, DashboardMockup } from "./mockups";
+import { BrowserFrame } from "./mockups";
 
 const DESC =
   "Logiciel de gestion conçu pour l'Algérie : clients, abonnements, rendez-vous, caisse et attendance en dinars, avec paiement par carte CIB, Edahabia, BaridiMob ou CCP.";
@@ -81,9 +81,13 @@ export function Hero() {
       </div>
 
       <div className="relative mx-auto max-w-6xl px-6 pb-20">
-        <div ref={shot.ref} className={`overflow-x-auto ${shot.className}`}>
+        <div ref={shot.ref} className={shot.className}>
           <BrowserFrame url="velora.app / tableau-de-bord">
-            <DashboardMockup />
+            <img
+              src="/images/landing/shot-dashboard.jpg"
+              alt="Tableau de bord Velora"
+              className="w-full"
+            />
           </BrowserFrame>
         </div>
       </div>

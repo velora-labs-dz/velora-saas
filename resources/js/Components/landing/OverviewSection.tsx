@@ -1,22 +1,24 @@
 import { useReveal } from "./useReveal";
 import { Reveal } from "./Reveal";
-import { DashboardMockup, CalendarMockup, CaisseMockup } from "./mockups";
 
 const SHOTS = [
   {
     label: "Tableau de bord",
     text: "Chiffre d'affaires, adhésions, occupation — la santé de l'établissement en un écran.",
-    Component: DashboardMockup,
+    src: "/images/landing/shot-dashboard.jpg",
+    alt: "Tableau de bord Velora",
   },
   {
     label: "Rendez-vous",
     text: "Vue semaine, créneaux de 30 minutes, filtres praticien et prestation.",
-    Component: CalendarMockup,
+    src: "/images/landing/shot-calendar.jpg",
+    alt: "Planning des rendez-vous Velora",
   },
   {
     label: "Caisse",
     text: "Encaissement rapide, remises, tickets et journal de caisse quotidien.",
-    Component: CaisseMockup,
+    src: "/images/landing/shot-caisse.jpg",
+    alt: "Caisse Velora",
   },
 ];
 
@@ -50,8 +52,8 @@ export function OverviewSection() {
                 <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">{shot.text}</p>
                 <div className="mt-6 hairline max-w-[8rem]" />
               </div>
-              <figure className="overflow-x-auto overflow-y-hidden rounded-3xl border border-border/70 bg-card shadow-soft transition duration-700 hover:scale-[1.01]">
-                <shot.Component />
+              <figure className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-soft transition duration-700 hover:scale-[1.01]">
+                <img src={shot.src} alt={shot.alt} className="w-full" loading="lazy" />
               </figure>
             </Reveal>
           ))}
