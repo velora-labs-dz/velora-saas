@@ -38,4 +38,28 @@ class OrganizationMember extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Active Owner rows for an organization, optionally excluding one row
+     * (the member currently being demoted/removed) and optionally locked
+     * for update — used by the "must always have at least one owner"
+     * invariant, which needs a consistent read inside a transaction to be
+     * race-safe against two concurrent demotions.
+     */
+    public function scopeActiveOwners(
+        \Illuminate\Database\Eloquent\Builder $query,
+        int $organizationId,
+        ?int $excludingMemberId = null,
+    ): \Illuminate\Database\Eloquent\Builder {
+        $query = $query
+            ->where('organization_id', $organizationId)
+            ->where('role', OrganizationRole::Owner)
+            ->where('is_active', true);
+
+        if ($excludingMemberId !== null) {
+            $query->where('id', '!=', $excludingMemberId);
+        }
+
+        return $query;
+    }
 }

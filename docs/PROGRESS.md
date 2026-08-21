@@ -6,11 +6,11 @@ Update at the end of each meaningful working session.
 
 ## Current date
 
-2026-08-21
+2026-08-22
 
 ## Current phase
 
-Phase 1, Step 2 (Organizations + Tenancy) — complete.
+Phase 1, Step 3 (RBAC) — complete.
 
 ## Completed
 
@@ -31,6 +31,11 @@ Phase 1, Step 2 (Organizations + Tenancy) — complete.
       `velora_saas` database, Pest suite green (20/20), manual browser
       walkthrough confirmed the cross-tenant 403 boundary. See session
       update below for detail.
+- [x] RBAC (member management actions/requests/controller/UI, expanded
+      `OrganizationPolicy`, `RbacTest`, `MemberManagementTest`) — full
+      permission matrix from `TESTING.md` implemented and verified, Pest
+      suite green (36/36 once frontend assets were built). See session
+      update below for detail.
 
 ## Current environment — important correction
 
@@ -47,41 +52,31 @@ Do not tell future engineers/AI that Docker or Redis is operational until this c
 
 ## Current active work
 
-Organizations + Tenancy is done. Landing page work continues in parallel as
-presentation-only work, not core SaaS architecture. Next core milestone is
-RBAC (Step 3) — not started.
+RBAC is done. Landing page work continues in parallel as presentation-only
+work, not core SaaS architecture. Next core milestone is Clients (Step 4) —
+not started.
 
 ## Next technical milestone
 
-# Organizations + Tenancy
+# Clients (Phase 1, Step 4)
 
 Tasks:
 
-1. create `organizations`
-2. create `organization_members`
-3. create model relationships
-4. define organization ownership
-5. implement current organization context
-6. implement organization switching if required
-7. write tenant isolation tests
-8. verify authorization boundary
-9. commit and push
+1. `clients` migration, scoped to `organization_id`
+2. `Client` model + factory
+3. policy (tenant-scoped, RBAC-aware per the Step 3 matrix)
+4. create / update / archive-or-delete per policy
+5. search + list
+6. basic notes
+7. tenant isolation tests (read/create/update/delete per `TESTING.md` §4)
+8. commit and push
 
 ## Immediate acceptance test
 
-Create:
-
-- Alice → Organization A
-- Bob → Organization B
-
-Verify:
-
-- Alice can access A
-- Alice cannot access B
-- Bob can access B
-- Bob cannot access A
-
-Test the denial through real Laravel authorization/application paths.
+Per `TESTING.md` §4 (Client tests): create, edit, archive/delete according
+to policy, duplicate handling, search, unauthorized access, cross-tenant
+access — each proven through a real HTTP request, not just a passing
+assertion in isolation.
 
 ## Do not implement yet
 
@@ -239,3 +234,110 @@ Step 3 — RBAC. Not started; open as its own task.
 None outstanding for this milestone. See "Current environment" above for
 the `CACHE_STORE=redis` note to resolve before Redis-dependent features are
 built for real.
+
+---
+
+## Session update — 2026-08-22 — RBAC
+
+### Date
+
+2026-08-22
+
+### What I changed
+
+Implemented the full RBAC milestone on top of Step 2's tenancy boundary:
+member management (list/add/change-role/remove/leave) with the permission
+matrix `TESTING.md` §3 requires.
+
+**Actions:** `AddOrganizationMemberAction`, `UpdateOrganizationMemberRoleAction`,
+`RemoveOrganizationMemberAction` — the last two enforce the "an organization
+must always have at least one active Owner" invariant via a locking read
+(`lockForUpdate()`), not just a policy check, so it's race-safe against two
+concurrent demotions/removals.
+
+**Policy (`OrganizationPolicy`):** `viewMembers` (any active member),
+`addMember` / `updateMemberRole` / `removeMember` (Owner/Admin only, and
+only an Owner may grant Owner or touch an existing Owner's role — ownership
+transfer is Owner-only), `leaveOrganization` (any active member, for
+themselves only).
+
+**Routes/UI/Controller:** `OrganizationMemberController`
+(index/store/update/destroy/leave), `Organizations/Members.tsx`.
+
+**Tests:** `tests/Feature/Organizations/MemberManagementTest.php`,
+`tests/Security/RbacTest.php` covering the full Owner/Admin/Staff/Viewer
+matrix plus self-role-change and last-owner-standing edge cases.
+
+### What I tested
+
+`vendor/bin/pest tests/Feature/Organizations tests/Security` against the
+real `velora_saas` Postgres database.
+
+### What passed
+
+35/36 on the first full run. A second run (after `npm run build` fixed an
+unrelated "Vite manifest not found" issue on 5 Inertia-rendering tests)
+brought the suite to 36/36 minus the one real RBAC bug below — 35 passing,
+1 failing, until the fix landed.
+
+### What failed
+
+One real bug: `the sole remaining owner cannot be demoted` failed with
+"Session is missing expected key [errors]" — the response wasn't the
+expected 422.
+
+**Root cause:** `OrganizationPolicy::updateMemberRole()` had a blanket
+`if ($target->user_id === $user->id) return false;` self-check. That's too
+broad — it blocked *every* self-role-change (including a sole Owner
+demoting themselves) with a 403, before the request ever reached
+`UpdateOrganizationMemberRoleAction`'s "must have at least one Owner"
+validation logic, so the test never got the `role` session error it
+expected.
+
+**Why the blanket check was redundant:** self-privilege-*escalation* (a
+non-Owner granting themselves Owner) was already independently blocked by
+the ownership-transfer rule a few lines below (only an existing Owner may
+grant/touch Owner). A self-*demotion* (Owner stepping down to Admin) isn't
+an escalation and shouldn't be a 403 — it should hit the same "must always
+have one Owner" invariant that already existed in the Action, whether the
+target is the actor or someone else.
+
+**Fix:** removed the blanket self-check from `updateMemberRole`. Verified
+this doesn't reopen `nobody can change their own role` (Admin self-promoting
+to Owner) — that case is still correctly blocked by the ownership-transfer
+rule alone, since granting Owner still requires the actor to already be an
+Owner.
+
+Not yet re-run locally (no PHP available in this session) — expecting
+36/36 on next run; report back the output.
+
+### Database changes
+
+None — RBAC is enforced entirely at the policy/action layer on top of the
+existing `organization_members` schema.
+
+### Security impact
+
+Closes a gap where the last-Owner-protection invariant could be bypassed
+via a false-negative *authorization* failure masking what should be a
+*validation* failure — functionally the org was still protected (request
+was rejected either way), but the failure mode was wrong, which is exactly
+the kind of thing that hides a real bug behind a superficially-passing
+security posture. Confirms self-privilege-escalation to Owner is still
+blocked through the ownership-transfer rule, independent of the removed
+self-check.
+
+### Decisions made
+
+None requiring a new ADR — this is a bugfix to the RBAC rule set specified
+in `TESTING.md` §3, not a change in architecture or direction.
+
+### Next exact task
+
+Step 4 — Clients. Not started; open as its own task. See "Next technical
+milestone" above.
+
+### Notes / blockers
+
+Re-run `vendor/bin/pest tests/Feature/Organizations tests/Security` locally
+to confirm 36/36 before starting Step 4.

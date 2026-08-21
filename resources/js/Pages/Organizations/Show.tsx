@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 
 interface Props {
     organization: {
@@ -24,6 +24,18 @@ export default function Show({ organization, role }: Props) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
+                    <div className="mb-4 flex justify-end">
+                        <Link
+                            href={route(
+                                'organizations.members.index',
+                                organization.slug,
+                            )}
+                            className="text-sm text-indigo-600 hover:text-indigo-800"
+                        >
+                            Manage members →
+                        </Link>
+                    </div>
+
                     <div className="bg-white p-6 shadow-sm sm:rounded-lg">
                         <dl className="grid grid-cols-2 gap-4 text-sm">
                             <dt className="text-gray-500">Status</dt>
