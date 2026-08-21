@@ -1,0 +1,35 @@
+{
+  "package": "Velora Labs Source-of-Truth Documentation",
+  "date": "2026-08-21",
+  "files": [
+    "API_AND_INTEGRATIONS.md",
+    "BILLING.md",
+    "BUILD_NOTES.md",
+    "CLAUDE_HANDOFF.md",
+    "DATABASE_SCHEMA.md",
+    "DECISIONS.md",
+    "DEVOPS.md",
+    "DOMAIN_MODEL.md",
+    "FOUNDATION.md",
+    "GITHUB_WORKFLOW.md",
+    "LATER.md",
+    "MARKETPLACE.md",
+    "PROGRESS.md",
+    "README.md",
+    "ROADMAP.md",
+    "SECURITY.md",
+    "SYSTEM_DESIGN.md",
+    "TESTING.md",
+    "UX_DESIGN.md",
+    "VELORA_SOURCE_OF_TRUTH.md"
+  ],
+  "current_environment": {
+    "laravel": "13",
+    "frontend": "Inertia + React + TypeScript",
+    "database": "PostgreSQL",
+    "local_runtime": "Laravel Herd on Windows",
+    "docker": false,
+    "redis": false,
+    "next_backend_milestone": "Organizations + Tenancy"
+  }
+}

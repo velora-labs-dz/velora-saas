@@ -111,17 +111,20 @@ velora-saas/
 
 ---
 
-## 7. Phase Order (do not skip ahead)
+## 7. Build Order — Steps Within Phase 1 (do not skip ahead)
 
-1. Identity + Auth
-2. Organizations + Tenancy + Tenant isolation test
-3. RBAC (roles/permissions) + Role enforcement test
-4. Clients (CRM basics)
-5. Services + Membership Plans
-6. Appointments
-7. Attendance
-8. Payments (manual only)
-9. → **First real business onboarded here.** Everything after this point is driven by what that business actually needs, not by this document.
+Important naming note: these are STEPS inside Phase 1 (the MVP), not separate phases. "Phase 1" is the whole list below, done end-to-end. Don't confuse Step 1 with "Phase 1 complete" — they are not the same thing.
+
+- **Step 1 — Identity + Auth.** Mostly free via Breeze (register/login/logout/password-reset/sessions). Little to no custom work expected here for MVP — if this step looks empty, that's correct, not behind schedule.
+- **Step 2 — Organizations + Tenancy + tenant isolation test.** This is where real Velora-specific work starts.
+- **Step 3 — RBAC (roles/permissions) + role enforcement test**
+- **Step 4 — Clients (CRM basics)**
+- **Step 5 — Services + Membership Plans**
+- **Step 6 — Appointments**
+- **Step 7 — Attendance**
+- **Step 8 — Payments (manual only)**
+
+→ **First real business onboarded here.** Everything after Step 8 is driven by what that business actually needs, not by this document.
 
 ---
 

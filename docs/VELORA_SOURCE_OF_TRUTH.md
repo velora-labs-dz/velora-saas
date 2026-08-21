@@ -1,103 +1,148 @@
-# VELORA_SOURCE_OF_TRUTH.md
+# VELORA — SOURCE OF TRUTH
 
-This document is the constitution. It does not change per feature, per client request, or per mood on a Tuesday night. If a decision in this file needs to change, that change must be made deliberately, in this file, with a reason written down — not silently overridden in code somewhere.
+Status: Living constitution. Changes require an explicit amendment and reason.
 
-If you (or any future Claude instance) are ever unsure what to do, this file wins over any other instinct, ChatGPT suggestion, or client pressure.
+## 1. Product identity
 
----
+Velora is a B2B multi-tenant SaaS platform for service businesses, starting with Algeria and initially focusing on fitness, SPA, beauty and wellness operations.
 
-## 1. Non-Negotiable Rules
+Velora is intended to become a business operating platform, not a collection of unrelated CRUD screens.
 
-1. **No table without a domain reason.** If you can't say in one sentence why an entity exists, it doesn't get created.
-2. **No business action without authorization.** Every mutation goes through a Policy. No exceptions, no "I'll add auth later."
-3. **No financial record is ever edited in place.** Payments, invoices — corrections happen via refund/reversal/adjustment records, never `UPDATE payments SET amount = ...`.
-4. **No tenant-owned data without an `organization_id` that is server-derived and server-verified.** Never trust an `organization_id` sent from the frontend. Always resolve it from the authenticated user's current organization context.
-5. **No feature ships without a tenant isolation test.** Org A must never be able to read, write, or infer the existence of Org B's data — test this explicitly, per entity.
-6. **No custom one-off code for a single client.** If a client needs something, it becomes a configuration option or feature flag, or it doesn't get built. (This is the rule most likely to get bent under pressure — it is the one that matters most.)
-7. **Money is always `DECIMAL`, never float. Every amount has an explicit currency.** Default currency: DZD.
-8. **Roles are assigned per-organization, never globally on the user.** A user can be Owner of Org A and Staff of Org B simultaneously. The `users` table never has a role column.
-9. **Controllers stay thin.** Validation → Authorization → Action class → Response. Business logic does not live in controllers.
-10. **A feature is not done when the screen exists.** Done = migration + policy + validation + business logic + frontend + test. All of them.
+Nexora and Style Le Club are prior work and research inputs. Velora is a clean rebuild in Laravel.
 
----
+## 2. Core architectural rules
 
-## 2. Naming (fixed — do not introduce synonyms)
+### 2.1 No table without a domain reason
 
-- The customer's business = **Organization**. Never "tenant," "company," or "business" in code/UI/docs.
-- The organization's customer = **Client**. Never "member," "user," or "customer" for this concept (confusing with SaaS-level users).
-- The thing Velora sells to the Organization = not modeled yet (no SaaS billing in Phase 1). When it exists, it's **Subscription**, and it is a completely separate concept from **Membership** (which is Client ↔ Organization).
-- Status values are stored in English, lowercase, snake_case (`active`, `frozen`, `expired`) — never store display language as state.
+Every persistent entity must represent a real business concept, a platform concern, or an operational requirement.
 
----
+A UI page is never a sufficient reason for a table.
 
-## 3. Tenancy Rule
+### 2.2 No business mutation without authorization
 
-Every table that holds organization-owned data has an `organization_id` foreign key. Every query touching that table is scoped through the authenticated user's current organization — resolved server-side, once, in middleware, not repeated ad-hoc in every controller.
+Every mutation is authorized on the server.
 
-The test that proves this works:
-```
-Alice belongs to Org A only.
-Bob belongs to Org B only.
+Frontend permissions are UX only.
 
-Alice → Org A clients: allowed
-Alice → Org B clients: denied (403 or 404, not data leakage)
-Bob   → Org B clients: allowed
-Bob   → Org A clients: denied
-```
-This test must exist and pass before any new entity is considered complete.
+### 2.3 Tenant ownership is mandatory
 
----
+Every organization-owned record has an `organization_id`.
 
-## 4. Authorization Rule
+The server derives and verifies organization context.
 
-Frontend hides buttons. Backend is the only thing that actually enforces anything. Every entity with mutation actions gets a Policy class. If a Policy doesn't exist for an entity, that entity cannot be mutated yet — write the Policy first.
+Never trust a client-provided organization ID as proof of ownership.
 
-Default role capabilities (4 roles for now — Owner, Admin, Staff, Viewer):
-- **Owner** — full control, including organization deletion and ownership transfer (explicit workflow, never plain CRUD)
-- **Admin** — manage everything except billing/ownership
-- **Staff** — create/update within their scope, no delete, no admin actions
-- **Viewer** — read-only, everywhere
+### 2.4 Financial records are append-oriented
 
----
+Payments, invoices and financial history are not casually edited in place.
 
-## 5. What Gets Built vs What Doesn't
+Corrections use explicit operations such as refunds, reversals, credit notes or adjustments.
 
-Build it if:
-- A real business (not a hypothetical one) needs it to operate, OR
-- Its absence blocks Phase 1 from being usable end-to-end
+### 2.5 Tenant isolation is continuously tested
 
-Don't build it if:
-- "It would be cool" / "competitors have it" / "might need it later"
-- It's solving one client's one-off request instead of a repeatable pattern
+Organization A must never read, create, modify, delete or infer Organization B data.
 
-When in doubt, it goes in `LATER.md`, not in the codebase.
+### 2.6 Roles are organization-scoped
 
----
+A user has a role through membership in an organization.
 
-## 6. Stack Commitment
+The global `users` record never owns the organization role.
 
-Laravel 13 + Inertia + React/TS + PostgreSQL + Redis. This was chosen deliberately after considering NestJS/Next.js (used on Style Le Club) and picking Laravel intentionally for this project. Do not re-litigate the stack mid-build. If it's genuinely wrong, that's a documented decision here, not a silent pivot three weeks in.
+### 2.7 Status values are domain values
 
----
+Store stable machine values such as:
 
-## 7. Relationship to Past Work
+- `active`
+- `frozen`
+- `expired`
+- `cancelled`
 
-Nexora and Style Le Club are prior work, not this project's foundation. Lessons carry over (tenant scoping, role-based permission checks, atomic sequential numbering for receipts/invoices via a counters-style service, mixed-payment handling) — but no code, tables, or architecture gets copied wholesale. Velora is rebuilt clean, deliberately, in Laravel.
+Never store translated display strings as state.
 
----
+### 2.8 Controllers stay thin
 
-## 8. Amendment Rule
+The expected server flow is:
 
-This file can change. But a change means:
-1. Write down what's changing and why, right here, with a date.
-2. It's a deliberate edit, not a workaround discovered while coding at 1am under deadline pressure.
+Request validation → authorization → application action → domain/business operation → response.
 
----
+### 2.9 The product is not built from screens
 
-## 9. The One Question That Matters
+For every feature, define:
 
-Before adding anything not already in FOUNDATION.md's Phase 1 scope, ask:
+- problem
+- actor
+- domain object
+- state
+- rules
+- authorization
+- persistence
+- workflow
+- tests
+- UI
 
-> "Does a real business, today, need this to run their operations on Velora — or am I building this because it seems important?"
+### 2.10 No client-specific forks
 
-If you can't answer with a specific business need, don't build it yet.
+A customer request becomes a reusable configuration, feature, workflow, or product capability.
+
+Do not build private forks for individual customers.
+
+## 3. Current stack commitment
+
+- Laravel 13
+- Inertia
+- React
+- TypeScript
+- PostgreSQL
+- Pest
+- Redis when queue/cache infrastructure is actually introduced
+- Laravel Herd for local application runtime on Windows
+
+No microservices at the current stage.
+
+No separate Next.js frontend.
+
+No separate API + SPA split unless a documented architecture decision changes this.
+
+## 4. Current environment truth
+
+At the current project stage:
+
+- Laravel is running through Herd.
+- PostgreSQL is installed/running natively on Windows.
+- pgAdmin is being used for database administration.
+- The `velora_saas` database exists.
+- Default Laravel migrations have run.
+- Docker has NOT been introduced.
+- Redis has NOT been configured or used yet.
+- The landing page is currently being built as a pixel-accurate recreation/reference of the current Nexora landing experience.
+- After the landing work, the next backend milestone is Organizations + Tenancy.
+
+Documentation must describe reality. Do not write that Docker or Redis is active until it actually is.
+
+## 5. Initial roles
+
+Phase 1 roles:
+
+- Owner
+- Admin
+- Staff
+- Viewer
+
+Manager is deliberately deferred until a demonstrated business need exists.
+
+## 6. Product principle
+
+The MVP must be small in implementation scope but serious in architecture.
+
+Small scope does not mean shallow domain modeling.
+
+## 7. Amendment rule
+
+Any change to these rules must record:
+
+- date
+- changed rule
+- reason
+- consequences
+
+in `DECISIONS.md`.
