@@ -24,6 +24,16 @@ class ResolveCurrentOrganization
 
     public function handle(Request $request, Closure $next): Response
     {
+        // Unconditionally reset first. CurrentOrganization is bound as a
+        // singleton (see AppServiceProvider) so every downstream consumer
+        // in this request sees what this middleware sets — but the same
+        // instance can otherwise carry state over from a *previous*
+        // request in any environment that reuses the application between
+        // requests (Laravel Octane workers; sequential HTTP calls within
+        // one test). Clearing first means a request that shouldn't have a
+        // current organization never inherits one left over from before.
+        $this->currentOrganization->clear();
+
         $user = $request->user();
 
         if ($user) {

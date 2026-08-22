@@ -69,3 +69,18 @@ function addOrganizationMember(
 
     return $member;
 }
+
+/**
+ * Puts $user's session into "currently operating in $organization" state
+ * via the real switch endpoint, the same way a browser session would —
+ * rather than poking the session array directly. Used by any test for an
+ * entity scoped through CurrentOrganization (e.g. Clients) instead of a
+ * {organization:slug} URL segment.
+ */
+function switchInto(
+    \Illuminate\Foundation\Testing\TestCase $test,
+    \App\Models\User $user,
+    \App\Models\Organization $organization,
+): \Illuminate\Testing\TestResponse {
+    return $test->actingAs($user)->post("/organizations/{$organization->slug}/switch");
+}

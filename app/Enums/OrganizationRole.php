@@ -32,4 +32,15 @@ enum OrganizationRole: string
     {
         return $this === self::Owner;
     }
+
+    /**
+     * Roles allowed to perform operational mutations on organization-owned
+     * business entities (e.g. Clients) — create/edit, but not necessarily
+     * destructive actions. Per docs/TESTING.md §3: Owner/Admin/Staff can
+     * mutate operationally; Viewer cannot.
+     */
+    public function canManageClients(): bool
+    {
+        return $this !== self::Viewer;
+    }
 }

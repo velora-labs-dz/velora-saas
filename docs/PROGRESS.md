@@ -10,7 +10,7 @@ Update at the end of each meaningful working session.
 
 ## Current phase
 
-Phase 1, Step 3 (RBAC) — complete.
+Phase 1, Step 4 (Clients) — complete.
 
 ## Completed
 
@@ -36,6 +36,12 @@ Phase 1, Step 3 (RBAC) — complete.
       permission matrix from `TESTING.md` implemented and verified, Pest
       suite green (36/36 once frontend assets were built). See session
       update below for detail.
+- [x] Clients (migration, model, factory, policy, actions, requests,
+      controller, UI, tests) — full CRUD + search + archive/restore,
+      scoped to the session-resolved current organization rather than a
+      URL slug (first real use of `CurrentOrganization`/`EnsureCurrentOrganization`).
+      Surfaced and fixed a real latent bug in that mechanism — see session
+      update below. Pest suite green (52/52).
 
 ## Current environment — important correction
 
@@ -47,36 +53,48 @@ Phase 1, Step 3 (RBAC) — complete.
 - `.env` currently has `CACHE_STORE=redis`, which breaks the login rate
   limiter since Redis isn't running. Switch to `database` or `file` until
   Redis is actually configured.
+- The Pest suite runs on SQLite in-memory (`phpunit.xml`), not Postgres.
+  App code must stay portable across both — no `ILIKE`, no other
+  Postgres-only SQL, unless explicitly guarded. Use Laravel's
+  driver-aware query builder methods (e.g. `whereLike(..., caseSensitive: false)`
+  instead of raw `ILIKE`) so the same code is correct on both engines.
 
 Do not tell future engineers/AI that Docker or Redis is operational until this changes.
 
 ## Current active work
 
-RBAC is done. Landing page work continues in parallel as presentation-only
-work, not core SaaS architecture. Next core milestone is Clients (Step 4) —
-not started.
+Clients (Step 4) is done. Landing page work continues in parallel as
+presentation-only work, not core SaaS architecture. Next core milestone is
+Services + Memberships (Step 5) — not started.
 
 ## Next technical milestone
 
-# Clients (Phase 1, Step 4)
+# Services + Memberships (Phase 1, Step 5)
 
 Tasks:
 
-1. `clients` migration, scoped to `organization_id`
-2. `Client` model + factory
-3. policy (tenant-scoped, RBAC-aware per the Step 3 matrix)
-4. create / update / archive-or-delete per policy
-5. search + list
-6. basic notes
-7. tenant isolation tests (read/create/update/delete per `TESTING.md` §4)
+1. `services` migration + model + factory, scoped to `organization_id`
+2. `membership_plans` migration + model — a plan bundles one or more
+   services (or grants unlimited/limited access), has a price, a duration
+   or session count, and belongs to an organization
+3. `memberships` migration + model — a Client's actual purchase/assignment
+   of a plan, with a state (active/expired/cancelled — exact states TBD
+   against `DOMAIN_MODEL.md` before building)
+4. policies for all three (RBAC-aware per the Step 3 matrix; same
+   CurrentOrganization-scoped routing pattern as Clients)
+5. assign a membership to a client
+6. basic renewal (manual, no automation yet — see ROADMAP.md 2.3 for the
+   deferred automation)
+7. tenant isolation + RBAC tests for all three entities
 8. commit and push
 
 ## Immediate acceptance test
 
-Per `TESTING.md` §4 (Client tests): create, edit, archive/delete according
-to policy, duplicate handling, search, unauthorized access, cross-tenant
-access — each proven through a real HTTP request, not just a passing
-assertion in isolation.
+Per `TESTING.md` (check for a Services/Memberships section — read it
+before starting, the way Clients' §4 was read before Step 4): create a
+service, create a membership plan referencing it, assign that plan to a
+client as a membership, renew it, and confirm cross-tenant isolation and
+RBAC on all three entities — each proven through a real HTTP request.
 
 ## Do not implement yet
 
@@ -341,3 +359,149 @@ milestone" above.
 
 Re-run `vendor/bin/pest tests/Feature/Organizations tests/Security` locally
 to confirm 36/36 before starting Step 4.
+
+---
+
+## Session update — 2026-08-22 — Clients
+
+### Date
+
+2026-08-22
+
+### What I changed
+
+Implemented the full Clients milestone: `clients` migration (phone
+required, unique-per-organization via a partial index that excludes
+archived rows so a phone frees up on archive; soft deletes for archive,
+no permanent delete in Phase 1 — see the migration's comments for why),
+`Client` model + factory, `ClientPolicy` (Owner/Admin full access, Staff
+operational-only, Viewer read-only — mapped onto a new
+`OrganizationRole::canManageClients()`), `Store`/`UpdateClientRequest`,
+four `Actions/Clients/*`, `ClientController`, four Inertia pages
+(Index/Create/Show/Edit), and `Feature/Clients/ClientManagementTest` +
+`Security/ClientTenantIsolationTest`.
+
+This is also the **first entity to use `CurrentOrganization`/
+`EnsureCurrentOrganization`** — routes are `/clients`, not
+`/organizations/{slug}/clients`; the active organization comes from the
+session (set via the existing switch endpoint), not the URL. Every lookup
+in `ClientController` resolves through
+`$currentOrganization->organizationOrFail()->clients()->findOrFail($id)`
+rather than a global `Client::find()`, so a client from another
+organization 404s at the query level, before any policy runs (see
+`docs/SECURITY.md` §5).
+
+### What I tested
+
+`vendor/bin/pest tests/Feature/Organizations tests/Feature/Clients tests/Security`
+against the real `velora_saas` Postgres database (dev) and a fresh
+`php artisan migrate`.
+
+### What passed
+
+52/52, after two rounds of fixes below. (Total is 21 Organizations + 12
+Clients + 4 Client tenant isolation + 6 Rbac + 9 org TenantIsolation.)
+
+### What failed, and what I found
+
+**Round 1 (13 failures) — a real, significant bug**, not a test-writing
+mistake: `CurrentOrganization` was never bound as a singleton. Its
+consumers — `ResolveCurrentOrganization` (sets it), `EnsureCurrentOrganization`
+(reads it), `ClientController` (reads it) — each type-hint it in their
+constructor, and without an explicit singleton binding, Laravel's
+container hands each of them a *separate, independent instance* per
+resolution. So `ResolveCurrentOrganization` would populate instance A, and
+a moment later in the same request `EnsureCurrentOrganization` would check
+instance B — always empty — and silently redirect to `organizations.index`
+before the controller was ever reached. No exception, no validation error,
+just a redirect that happened to satisfy a bare `assertRedirect()` while
+creating nothing. This was a **latent bug from Step 2** — nothing had
+exercised `CurrentOrganization` across two separate components in one
+request until Clients did, since Organizations/Members routes resolve
+`$organization` directly from `{organization:slug}` and never touch it.
+
+Fixed two ways:
+1. `$this->app->singleton(CurrentOrganization::class)` in
+   `AppServiceProvider`, so every consumer in a request shares one
+   instance.
+2. `ResolveCurrentOrganization` now unconditionally `clear()`s the
+   instance before conditionally `set()`ing it. A singleton alone would
+   still leak state across requests in any environment that reuses the
+   application between requests — sequential HTTP calls within one Pest
+   test (proven necessary here), and notably Laravel Octane workers in
+   production, where "state accidentally shared between requests via a
+   singleton" is a well-known class of bug. Clearing first means a
+   request that shouldn't have a current organization never inherits one
+   left over from a previous request.
+
+Also in round 1: 3 failures were my own mistake, not a code bug — when I
+consolidated a duplicate test helper into `tests/Pest.php` as
+`switchInto()`, I removed the old `switchClientTestUserInto()` definition
+from `ClientTenantIsolationTest.php` but missed renaming its 3 call
+sites. Fixed.
+
+While fixing round 1, also **tightened a test that was passing for the
+wrong reason**: `archiving a client frees its phone number for a new
+client` had assertions loose enough (`assertRedirect()` with no target,
+`assertDatabaseHas` without excluding trashed rows) that it would have
+passed even under the singleton bug — i.e. even if the archive request had
+silently no-opped. It now asserts the client is actually `trashed()` and
+counts rows with/without the soft-delete scope to confirm exactly one
+archived + one active row exist.
+
+**Round 2 (6 failures) — two more issues, one real, one environmental:**
+
+- Real: `Client::scopeSearch()` used raw `ILIKE` (Postgres-only syntax).
+  The dev/prod database is Postgres, but the Pest suite runs on SQLite
+  in-memory (`phpunit.xml`), and SQLite has no `ILIKE` operator — the
+  search test failed with a SQL syntax error. Switched to Laravel's
+  `whereLike($column, $value, caseSensitive: false)`, which compiles to
+  `ILIKE` on Postgres and a case-insensitive `LIKE` on SQLite — same code,
+  correct on both. Also switched the concatenated-full-name match to pass
+  a `DB::raw()` expression as the column argument, since `whereLike`
+  accepts an `Expression` as well as a column name. Added a note under
+  "Current environment" so this class of bug (Postgres-only SQL breaking
+  the SQLite-backed test suite) doesn't recur silently.
+- Environmental, not a bug: 5 failures were `Vite manifest not found` /
+  "Not a valid Inertia response" — the same issue as Step 3. New `.tsx`
+  pages need `npm run build` before Inertia can render them in tests.
+
+### Database changes
+
+New `clients` table. See migration comments for the phone-uniqueness
+partial index and the soft-delete/no-permanent-delete rationale.
+
+### Security impact
+
+First real exercise of `CurrentOrganization`-scoped access control — and
+it initially failed *safe* (redirected instead of leaking data) rather
+than failing open, which is the right default for this class of bug, but
+it still meant the feature was completely non-functional rather than
+insecure. Confirmed after the fix: a client id from another organization
+404s even for an Owner of the current organization (IDOR test), a
+deactivated membership loses access to clients on the very next request,
+and a user who isn't a member of an organization can't select it as
+current and therefore can't reach its clients at all.
+
+### Decisions made
+
+Documented inline in code comments (all in this round's files, not
+separately in `DECISIONS.md` since none of these are architecture-level —
+they're implementation choices within the already-decided Clients scope):
+phone is required and is the duplicate-check field (not email); no
+permanent delete in Phase 1, archive/restore only; Clients (and every
+org-owned entity from here on) use `CurrentOrganization` session-scoped
+routing rather than `{organization:slug}` in the URL.
+
+### Next exact task
+
+Step 5 — Services + Memberships. Not started; open as its own task. See
+"Next technical milestone" above. Read `TESTING.md` for the
+Services/Memberships section before writing any code, the same way
+Clients' §4 was read first.
+
+### Notes / blockers
+
+None outstanding. The `CACHE_STORE=redis` note under "Current environment"
+is still unresolved and still irrelevant until a Redis-dependent feature
+is actually built.

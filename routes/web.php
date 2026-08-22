@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationMemberController;
 use App\Http\Controllers\ProfileController;
@@ -31,6 +32,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/organizations/{organization:slug}/members', [OrganizationMemberController::class, 'store'])->name('organizations.members.store');
     Route::patch('/organizations/{organization:slug}/members/{member}', [OrganizationMemberController::class, 'update'])->name('organizations.members.update');
     Route::delete('/organizations/{organization:slug}/members/{member}', [OrganizationMemberController::class, 'destroy'])->name('organizations.members.destroy');
+
+    // Clients (and every org-owned entity from here on) operate on the
+    // *current* organization resolved from the session — no slug in the
+    // URL — rather than repeating {organization:slug} per resource.
+    // 'current-org' (EnsureCurrentOrganization) blocks the request with a
+    // redirect to organizations.index if none is selected.
+    Route::middleware('current-org')->group(function () {
+        Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
+        Route::get('/clients/create', [ClientController::class, 'create'])->name('clients.create');
+        Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
+        Route::get('/clients/{client}', [ClientController::class, 'show'])->name('clients.show');
+        Route::get('/clients/{client}/edit', [ClientController::class, 'edit'])->name('clients.edit');
+        Route::patch('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
+        Route::delete('/clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
+        Route::post('/clients/{client}/restore', [ClientController::class, 'restore'])->name('clients.restore');
+    });
 });
 
 require __DIR__.'/auth.php';
