@@ -43,4 +43,16 @@ enum OrganizationRole: string
     {
         return $this !== self::Viewer;
     }
+
+    /**
+     * Same tier as canManageClients() today (everyone but Viewer can
+     * create/edit/activate/deactivate a service) — kept as its own method
+     * rather than reused because Services and Clients are different
+     * entities that may reasonably diverge later (e.g. if service pricing
+     * changes need Owner/Admin-only approval down the line).
+     */
+    public function canManageServices(): bool
+    {
+        return $this !== self::Viewer;
+    }
 }
