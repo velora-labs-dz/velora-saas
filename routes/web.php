@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\MembershipPlanController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationMemberController;
 use App\Http\Controllers\ProfileController;
@@ -55,6 +57,25 @@ Route::middleware('auth')->group(function () {
         Route::get('/services/{service}/edit', [ServiceController::class, 'edit'])->name('services.edit');
         Route::patch('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
         Route::patch('/services/{service}/toggle-status', [ServiceController::class, 'toggleStatus'])->name('services.toggle-status');
+
+        Route::get('/membership-plans', [MembershipPlanController::class, 'index'])->name('membership-plans.index');
+        Route::get('/membership-plans/create', [MembershipPlanController::class, 'create'])->name('membership-plans.create');
+        Route::post('/membership-plans', [MembershipPlanController::class, 'store'])->name('membership-plans.store');
+        Route::get('/membership-plans/{membershipPlan}/edit', [MembershipPlanController::class, 'edit'])->name('membership-plans.edit');
+        Route::patch('/membership-plans/{membershipPlan}', [MembershipPlanController::class, 'update'])->name('membership-plans.update');
+        Route::patch('/membership-plans/{membershipPlan}/toggle-status', [MembershipPlanController::class, 'toggleStatus'])->name('membership-plans.toggle-status');
+
+        Route::get('/memberships', [MembershipController::class, 'index'])->name('memberships.index');
+        Route::get('/memberships/create', [MembershipController::class, 'create'])->name('memberships.create');
+        Route::post('/memberships', [MembershipController::class, 'store'])->name('memberships.store');
+        Route::get('/memberships/{membership}', [MembershipController::class, 'show'])->name('memberships.show');
+        Route::get('/memberships/{membership}/edit', [MembershipController::class, 'edit'])->name('memberships.edit');
+        Route::patch('/memberships/{membership}', [MembershipController::class, 'update'])->name('memberships.update');
+        Route::patch('/memberships/{membership}/activate', [MembershipController::class, 'activate'])->name('memberships.activate');
+        Route::patch('/memberships/{membership}/freeze', [MembershipController::class, 'freeze'])->name('memberships.freeze');
+        Route::patch('/memberships/{membership}/unfreeze', [MembershipController::class, 'unfreeze'])->name('memberships.unfreeze');
+        Route::patch('/memberships/{membership}/cancel', [MembershipController::class, 'cancel'])->name('memberships.cancel');
+        Route::patch('/memberships/{membership}/expire', [MembershipController::class, 'expire'])->name('memberships.expire');
     });
 });
 

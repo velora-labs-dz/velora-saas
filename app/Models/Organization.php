@@ -63,6 +63,16 @@ class Organization extends Model
         return $this->hasMany(Service::class);
     }
 
+    public function membershipPlans(): HasMany
+    {
+        return $this->hasMany(MembershipPlan::class);
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(Membership::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'organization_members')

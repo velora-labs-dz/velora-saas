@@ -55,4 +55,26 @@ enum OrganizationRole: string
     {
         return $this !== self::Viewer;
     }
+
+    /**
+     * Same tier as canManageClients()/canManageServices(): create, edit,
+     * assign, activate, freeze, and unfreeze are all reversible/non-
+     * destructive operational actions available to Owner/Admin/Staff.
+     */
+    public function canManageMemberships(): bool
+    {
+        return $this !== self::Viewer;
+    }
+
+    /**
+     * Cancelling a membership ends a client's paid access and can't be
+     * undone by a further transition (Cancelled is terminal — see
+     * MembershipStatus::allowedTransitions()). That's a materially bigger
+     * consequence than freeze/unfreeze, so it sits at the same elevated
+     * tier as ClientPolicy::archive rather than the general manage tier.
+     */
+    public function canCancelMemberships(): bool
+    {
+        return $this->canManageOrganization();
+    }
 }
