@@ -77,4 +77,16 @@ enum OrganizationRole: string
     {
         return $this->canManageOrganization();
     }
+
+    /**
+     * Same tier as canManageClients()/canManageServices() — appointments
+     * don't carry the same elevated-cancel treatment Memberships do
+     * (cancelling a booking isn't ending a paid, terminal commitment the
+     * way cancelling a membership is), so create/edit/cancel all sit at
+     * the general manage tier.
+     */
+    public function canManageAppointments(): bool
+    {
+        return $this !== self::Viewer;
+    }
 }

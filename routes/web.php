@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipPlanController;
@@ -76,6 +77,13 @@ Route::middleware('auth')->group(function () {
         Route::patch('/memberships/{membership}/unfreeze', [MembershipController::class, 'unfreeze'])->name('memberships.unfreeze');
         Route::patch('/memberships/{membership}/cancel', [MembershipController::class, 'cancel'])->name('memberships.cancel');
         Route::patch('/memberships/{membership}/expire', [MembershipController::class, 'expire'])->name('memberships.expire');
+
+        Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+        Route::get('/appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
+        Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+        Route::get('/appointments/{appointment}/edit', [AppointmentController::class, 'edit'])->name('appointments.edit');
+        Route::patch('/appointments/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
+        Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
     });
 });
 

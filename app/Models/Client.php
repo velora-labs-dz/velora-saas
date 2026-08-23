@@ -53,6 +53,11 @@ class Client extends Model
         return $this->hasMany(Membership::class);
     }
 
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}");

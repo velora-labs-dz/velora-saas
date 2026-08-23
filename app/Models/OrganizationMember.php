@@ -6,6 +6,7 @@ use App\Enums\OrganizationRole;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Concerns\AsPivot;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrganizationMember extends Model
 {
@@ -37,6 +38,17 @@ class OrganizationMember extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Appointments where this member is the servicing staff — only
+     * meaningful for rows with role=staff, but the relation itself isn't
+     * role-restricted; that's enforced at assignment time (see
+     * StoreAppointmentRequest), not by the relation.
+     */
+    public function appointmentsAsEmployee(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'employee_id');
     }
 
     /**
