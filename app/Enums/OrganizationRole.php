@@ -98,4 +98,24 @@ enum OrganizationRole: string
     {
         return $this !== self::Viewer;
     }
+
+    /**
+     * Same tier as canManageAttendance()/canManageAppointments() —
+     * recording a payment is a routine front-desk operation.
+     */
+    public function canManagePayments(): bool
+    {
+        return $this !== self::Viewer;
+    }
+
+    /**
+     * Void and refund are financial corrections, not routine recording —
+     * same elevated bar as canCancelMemberships()/ClientPolicy::archive.
+     * A Staff member who can take a client's cash can't also unilaterally
+     * erase or reverse that record.
+     */
+    public function canCorrectPayments(): bool
+    {
+        return $this->canManageOrganization();
+    }
 }

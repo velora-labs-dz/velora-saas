@@ -64,3 +64,13 @@ A decision belongs here only when it changes architecture, domain modeling, infr
 
 **Consequences:** Route-model binding uses slug everywhere for `Organization`. Internal foreign keys (`organization_id` on child tables) continue to reference the bigint id as normal — this decision only affects what's exposed in URLs, not the internal schema.
 
+## ADR-010 — Payment gets a `membership_id` link and `refunded_amount` now, not later
+
+**Date:** 2026-08-24
+
+**Decision:** `payments` includes a nullable `membership_id` foreign key to `memberships`, and `refunded_amount` is part of the initial Step 8 schema — both confirmed explicitly before building, not assumed.
+
+**Reason:** `DATABASE_SCHEMA.md` §9's documented target schema has neither: no `membership_id` at all, and `refunded_amount` was listed under "Future." Two things changed that: (1) `ROADMAP.md`'s Step 8 feature list explicitly includes "balance tracking," which requires knowing which membership a payment applies to — `Membership.paid_amount`/`remaining_amount` (built in Step 5b, unused until now) only become meaningful once payments can actually update them; a client-scoped-only payment can't drive that. (2) `VELORA_SOURCE_OF_TRUTH.md` §2.4 requires financial corrections to use "explicit operations such as refunds, reversals, credit notes or adjustments," and `TESTING.md` §9 requires a "financial record correction through supported operation" test — confirmed to mean void *and* partial refund in Step 8, not refund deferred to later. Both were explicit confirmations, not inferred scope creep.
+
+**Consequences:** `payments.membership_id` is nullable — a payment can exist with no membership link (e.g. a one-off service payment), and `Membership.paid_amount`/`remaining_amount` are only recalculated when a payment is linked. Void and refund are separate operations with separate meanings, not one "cancel": void nullifies a payment that should never have been recorded (only legal from `recorded`, before any refund exists); refund reverses real money that changed hands (partial or full, tracked via `refunded_amount`, can be applied more than once up to the original amount). `DATABASE_SCHEMA.md` §9 is updated to match this as the actual implemented schema, per its own "documentation must describe reality" principle.
+

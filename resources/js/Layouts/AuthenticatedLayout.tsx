@@ -75,6 +75,12 @@ export default function Authenticated({
                                 >
                                     Attendance
                                 </NavLink>
+                                <NavLink
+                                    href={route('payments.index')}
+                                    active={route().current('payments.*')}
+                                >
+                                    Payments
+                                </NavLink>
                             </div>
                         </div>
 
@@ -220,6 +226,12 @@ export default function Authenticated({
                             active={route().current('attendance.*')}
                         >
                             Attendance
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('payments.index')}
+                            active={route().current('payments.*')}
+                        >
+                            Payments
                         </ResponsiveNavLink>
                     </div>
 

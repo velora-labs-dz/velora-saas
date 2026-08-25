@@ -345,12 +345,21 @@ Future:
 - id
 - organization_id
 - client_id
+- membership_id nullable — see ADR-010; a payment may or may not be tied
+  to a specific membership. When it is, `Membership.paid_amount`/
+  `remaining_amount` are kept in sync (recorded on payment, reversed on
+  void/refund).
 - amount
 - currency
-- method
-- status
+- method — cash/transfer only in Phase 1, no gateway
+- status — `recorded` / `voided` / `refunded`
 - reference nullable
 - paid_at
+- refunded_amount — cumulative amount refunded so far (0 unless
+  status=refunded); moved out of "Future" per ADR-010
+- refund_reason nullable
+- voided_at nullable
+- void_reason nullable
 - notes
 - recorded_by
 - created_at
@@ -362,7 +371,6 @@ Future:
 - provider
 - provider_transaction_id
 - parent_payment_id
-- refunded_amount
 
 ## 10. Locations — future Phase 2
 

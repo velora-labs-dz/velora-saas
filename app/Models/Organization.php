@@ -83,6 +83,11 @@ class Organization extends Model
         return $this->hasMany(Attendance::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'organization_members')

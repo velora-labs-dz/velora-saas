@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * `status`, `organization_id`, and `created_by` are intentionally excluded
@@ -15,6 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `activated_at`/`frozen_at`/`cancelled_at`/`cancellation_reason` are also
  * excluded — they're written only by the transition Actions
  * (ActivateMembershipAction etc.), never by a generic update.
+ * `paid_amount`/`remaining_amount` are excluded too, as of Step 8 — they're
+ * now driven exclusively by Payment actions (RecordPaymentAction etc. via
+ * recalculateBalance()), not by anything a membership edit form could
+ * submit. No FormRequest has ever actually sent them (UpdateMembershipRequest
+ * only validates starts_at/ends_at/price/currency/notes), so this closes a
+ * latent gap rather than changing current behavior.
  */
 #[Fillable([
     'client_id',
@@ -23,8 +30,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'ends_at',
     'price',
     'currency',
-    'paid_amount',
-    'remaining_amount',
     'notes',
 ])]
 class Membership extends Model
@@ -67,8 +72,27 @@ class Membership extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     public function canTransitionTo(MembershipStatus $target): bool
     {
         return $this->status->canTransitionTo($target);
+    }
+
+    /**
+     * Recomputes remaining_amount from price and the current
+     * paid_amount. Called by Payment actions after they adjust
+     * paid_amount (up on record, down on void/refund) — kept as one
+     * shared method so the subtraction logic has a single home rather
+     * than being repeated in RecordPaymentAction, VoidPaymentAction, and
+     * RefundPaymentAction. Does not save(); the caller is responsible for
+     * persisting alongside its own change.
+     */
+    public function recalculateBalance(): void
+    {
+        $this->remaining_amount = bcsub((string) $this->price, (string) $this->paid_amount, 2);
     }
 }

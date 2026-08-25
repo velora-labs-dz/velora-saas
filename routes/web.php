@@ -7,6 +7,7 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipPlanController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationMemberController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Foundation\Application;
@@ -89,6 +90,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
         Route::patch('/attendance/{attendance}/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+
+        Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
+        Route::patch('/payments/{payment}/void', [PaymentController::class, 'void'])->name('payments.void');
+        Route::patch('/payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
     });
 });
 
