@@ -10,7 +10,7 @@ Update at the end of each meaningful working session.
 
 ## Current phase
 
-Phase 1, Step 4 (Clients) — complete.
+Phase 1, Step 7 (Attendance) — complete.
 
 ## Completed
 
@@ -42,6 +42,35 @@ Phase 1, Step 4 (Clients) — complete.
       URL slug (first real use of `CurrentOrganization`/`EnsureCurrentOrganization`).
       Surfaced and fixed a real latent bug in that mechanism — see session
       update below. Pest suite green (52/52).
+- [x] Services (migration, model, factory, policy, actions, requests,
+      controller, UI, tests) — full CRUD + activate/deactivate. Surfaced
+      and fixed a real environment bug (stale `bootstrap/cache/config.php`
+      pinning `APP_ENV=local`, silently disabling the test-only CSRF
+      bypass) — see session update below. Pest suite green (10/10 for this
+      slice).
+- [x] MembershipPlans + Memberships (Step 5b) — full state machine
+      (draft → active → frozen/cancelled/expired, frozen → active, manual
+      unfreeze only), RBAC-tiered (cancel elevated to Owner/Admin, unlike
+      the general manage tier), tenant isolation including cross-org
+      client/plan assignment rejection. Pest suite green (29/29).
+- [x] Appointments (Step 6) — booking, edit, cancel; conflict validation
+      blocks double-booking on both the staff member and the client side
+      (overlapping-interval check, cancelled appointments excluded);
+      `employee_id` references `organization_members` (role=staff), not a
+      separate Employee table — none exists in the Phase 1 MVP entity
+      list. One test bug found and fixed (two default-factory appointments
+      landing on the same time slot masked an RBAC assertion behind a
+      validation error). Pest suite green (16/16).
+- [x] Attendance (Step 7) — manual check-in/check-out, deliberately
+      decoupled from Appointment (no `appointment_id`/`service_id` on the
+      table — a walk-in check-in doesn't require a prior booking, per
+      `DATABASE_SCHEMA.md` §8's target schema). Check-in rejects a second
+      open session for the same client (confirmed decision, and the exact
+      case `TESTING.md` §8's "duplicate/open session behavior" test
+      requires); a client can check in again once their prior session is
+      closed. No create/edit pages — check-in is an inline action on the
+      day-list index, matching the "manual history" scope, not a longer
+      form the way Appointments needed. Pest suite green (11/11).
 
 ## Current environment — important correction
 
@@ -58,43 +87,72 @@ Phase 1, Step 4 (Clients) — complete.
   Postgres-only SQL, unless explicitly guarded. Use Laravel's
   driver-aware query builder methods (e.g. `whereLike(..., caseSensitive: false)`
   instead of raw `ILIKE`) so the same code is correct on both engines.
+- Never leave `config:cache`/`route:cache` artifacts sitting around during
+  local dev+testing — a stale `bootstrap/cache/config.php` will freeze
+  `APP_ENV` at whatever it was when cached, silently breaking the
+  `runningUnitTests()` CSRF bypass for the entire Pest suite (every
+  POST/PATCH 419s) with no code-level cause. Run `php artisan
+  optimize:clear` if this happens. See Step 5a session update for the
+  full diagnosis.
 
 Do not tell future engineers/AI that Docker or Redis is operational until this changes.
 
 ## Current active work
 
-Clients (Step 4) is done. Landing page work continues in parallel as
-presentation-only work, not core SaaS architecture. Next core milestone is
-Services + Memberships (Step 5) — not started.
+Attendance (Step 7) is done — this closes out everything in
+`FOUNDATION.md` §4's Phase 1 checklist except Payments. Next core
+milestone is Payments (Step 8), the last step before "First real business
+onboarded here" per `FOUNDATION.md` §7.
 
 ## Next technical milestone
 
-# Services + Memberships (Phase 1, Step 5)
+# Payments (Phase 1, Step 8 — final step of Phase 1)
 
 Tasks:
 
-1. `services` migration + model + factory, scoped to `organization_id`
-2. `membership_plans` migration + model — a plan bundles one or more
-   services (or grants unlimited/limited access), has a price, a duration
-   or session count, and belongs to an organization
-3. `memberships` migration + model — a Client's actual purchase/assignment
-   of a plan, with a state (active/expired/cancelled — exact states TBD
-   against `DOMAIN_MODEL.md` before building)
-4. policies for all three (RBAC-aware per the Step 3 matrix; same
-   CurrentOrganization-scoped routing pattern as Clients)
-5. assign a membership to a client
-6. basic renewal (manual, no automation yet — see ROADMAP.md 2.3 for the
-   deferred automation)
-7. tenant isolation + RBAC tests for all three entities
+1. `payments` migration + model + factory, scoped to `organization_id` —
+   columns per `DATABASE_SCHEMA.md` §9: client_id, amount, currency,
+   method, status, reference (nullable), paid_at, notes, recorded_by.
+   `payment_intent_id`, `provider`, `provider_transaction_id`,
+   `parent_payment_id`, `refunded_amount` are explicitly future (real
+   gateway integration) — don't add them now. `method` is cash/transfer
+   only per `FOUNDATION.md` §4 ("Payment recording (cash/transfer only,
+   no provider integration)").
+2. **Append-oriented, not edit-in-place** — `VELORA_SOURCE_OF_TRUTH.md`
+   §2.4 is explicit: "Payments, invoices and financial history are not
+   casually edited in place. Corrections use explicit operations such as
+   refunds, reversals, credit notes or adjustments." `TESTING.md` §9
+   confirms with "financial record correction through supported
+   operation" as a required test case. Decide the status values and the
+   correction action (e.g. `recorded` → `voided`, no true delete/update
+   of amount) before writing the migration — this is the one place in
+   Phase 1 where get-it-right-first matters more than usual, since it's
+   money.
+3. policy (RBAC-aware; same `CurrentOrganization`-scoped routing pattern
+   as every entity since Clients)
+4. record-payment action + void/correction action
+5. Whether Payment links to a Membership is NOT in `DATABASE_SCHEMA.md`
+   §9's target schema (no `membership_id` column) — Payment is
+   client-scoped only, not membership-scoped. Don't add a relation that
+   isn't in the schema doc without confirming first.
+6. controller + routes + UI (index/record/void)
+7. tenant isolation + RBAC tests, including the "financial record
+   correction" test case specifically
 8. commit and push
 
 ## Immediate acceptance test
 
-Per `TESTING.md` (check for a Services/Memberships section — read it
-before starting, the way Clients' §4 was read before Step 4): create a
-service, create a membership plan referencing it, assign that plan to a
-client as a membership, renew it, and confirm cross-tenant isolation and
-RBAC on all three entities — each proven through a real HTTP request.
+Per `TESTING.md` §9 (valid payment, invalid amount, invalid currency,
+unauthorized payment, tenant isolation, financial record correction — read
+it before starting, the way every prior step's TESTING.md section was
+read first): record a cash payment for a client, confirm an invalid
+amount/currency is rejected, confirm a Viewer can't record one, confirm
+cross-tenant isolation, and confirm a recorded payment can be corrected
+through the supported operation (not a raw edit) — each proven through a
+real HTTP request.
+
+Once this is green, Phase 1 is done end-to-end per `FOUNDATION.md` §4 —
+that's the point the doc itself defines as ready for a real business.
 
 ## Do not implement yet
 
@@ -102,12 +160,15 @@ Do not jump to:
 
 - inventory
 - POS
-- billing
+- billing (Velora's own SaaS subscription billing — not the same as
+  recording a client's payment)
 - marketplace
 - AI
 - hardware
 - client portal
 - public API
+- payment provider integration (Stripe/CIB/local gateway) — cash/manual
+  only per `FOUNDATION.md` §4
 
 unless the roadmap phase is explicitly opened.
 
@@ -505,3 +566,365 @@ Clients' §4 was read first.
 None outstanding. The `CACHE_STORE=redis` note under "Current environment"
 is still unresolved and still irrelevant until a Redis-dependent feature
 is actually built.
+
+---
+
+## Session update — 2026-08-22 — Services (Step 5a)
+
+### Date
+
+2026-08-22
+
+### What I changed
+
+Implemented Services as its own reviewable slice, split from Memberships
+since the two together were a bigger unit of work than Clients was:
+`services` migration (price as `DECIMAL(10,2)`, never float, per
+`DATABASE_SCHEMA.md` §1; no soft-delete — activate/deactivate toggle
+instead, matching `TESTING.md` §5's "activate/deactivate" rather than the
+archive pattern Clients used), `Service` model + factory, `ServicePolicy`
+(Owner/Admin/Staff can create/edit/toggle, Viewer read-only — new
+`OrganizationRole::canManageServices()`), `Store`/`UpdateServiceRequest`,
+three `Actions/Services/*`, `ServiceController`, three Inertia pages
+(Index/Create/Edit), and `Feature/Services/ServiceManagementTest` +
+`Security/ServiceTenantIsolationTest`.
+
+### What I tested
+
+Full Pest run of `tests/Feature/Services` + `tests/Security/ServiceTenantIsolationTest.php`.
+
+### What passed
+
+Nothing, on the first run — see below.
+
+### What failed
+
+All 9 non-GET-based tests failed, all with the same underlying cause
+disguised as two different symptoms:
+
+- POST/PATCH requests (create, edit, toggle) got a real `TokenMismatchException`
+  (HTTP 419), even though Laravel's CSRF middleware unconditionally
+  bypasses verification when `app()->runningUnitTests()` is true —
+  which should always be true inside a Pest run.
+- GET requests that depend on session state set by a prior POST (e.g.
+  `switchInto()`, which itself POSTs to `/organizations/{slug}/switch`)
+  got redirected to `organizations.index` instead of rendering — because
+  `switchInto()`'s own POST had silently 419'd too, so
+  `current_organization_id` never made it into the session.
+
+Root cause, found by reading `LoadConfiguration::bootstrap()`: a stale
+`bootstrap/cache/config.php` existed on disk (from a `config:cache` run
+at some earlier point) with `'env' => 'local'` frozen into it. When a
+config cache file exists, Laravel skips reading `config/app.php` (and
+therefore skips re-evaluating `env('APP_ENV')`) entirely and uses the
+frozen array instead — which completely overrides `phpunit.xml`'s
+`<env name="APP_ENV" value="testing"/>`. The app booted thinking it was
+`local`, not `testing`, so the CSRF bypass never activated. Not a bug in
+any Services code — every entity's tests would have hit this if run
+after the cache was created.
+
+Fix: `php artisan optimize:clear` (removes the stale `bootstrap/cache/*`
+files). Re-ran: 10/10 green.
+
+Also fixed while in here: `tests/Pest.php` registers
+`->in('Feature', 'Security')`, but `phpunit.xml` only declared `Unit` and
+`Feature` testsuites — a bare `vendor/bin/pest` with no path arguments
+was silently skipping the entire `tests/Security` folder. Added a
+`Security` testsuite entry to `phpunit.xml`.
+
+### Database changes
+
+New `services` table.
+
+### Security impact
+
+None new — same `CurrentOrganization`-scoped pattern as Clients, just
+confirmed still correct (viewer-forbidden, cross-org 404 tests pass).
+
+### Decisions made
+
+Documented inline: price as `DECIMAL(10,2)`; no soft-delete for services,
+active/inactive toggle instead; toggling isn't elevated to Owner/Admin
+the way Client archive is, since nothing's destroyed — it just hides the
+service from future bookings.
+
+### Next exact task
+
+Step 5b — MembershipPlans + Memberships, the state-machine half of Step
+5. Not started.
+
+### Notes / blockers
+
+**Environmental gotcha worth remembering going forward**: never leave
+`config:cache`/`route:cache` artifacts sitting around during local
+dev+testing. If `php artisan optimize` (or `config:cache` directly) is
+ever run to test something production-like, follow it with
+`php artisan optimize:clear` before going back to `pest`/`artisan serve`
+— otherwise the entire test suite can fail with what looks like a CSRF
+bug but is actually a frozen `APP_ENV`. Logged under "Current
+environment" above so this doesn't need rediscovering.
+
+---
+
+## Session update — 2026-08-22 — MembershipPlans + Memberships (Step 5b)
+
+### Date
+
+2026-08-22
+
+### What I changed
+
+Implemented the state-machine half of Step 5: `membership_plans` and
+`memberships` migrations (price/currency on `memberships` is a snapshot
+taken at assignment time, not a live reference to the plan — matching the
+"frozen at assignment" pricing pattern from the Style Le Club project),
+`MembershipPlan`/`Membership` models, `MembershipStatus` enum encoding
+the full lifecycle (`draft → active → frozen/cancelled/expired`,
+`frozen → active`; `Cancelled`/`Expired` terminal; transition legality
+lives entirely in `MembershipStatus::allowedTransitions()` so it has one
+source of truth), `MembershipPlanPolicy`/`MembershipPolicy` (cancel
+elevated to `OrganizationRole::canCancelMemberships()` — Owner/Admin
+only, same tier as `ClientPolicy::archive` — since cancelling is
+terminal and ends paid access, unlike freeze/unfreeze/activate which sit
+at the general `canManageMemberships()` tier), seven Actions (one per
+transition plus create/update for both entities), `Store`/`Update`/`Cancel`
+FormRequests (tenant-scoped `Rule::exists` on `client_id`/
+`membership_plan_id`; `ends_at after:starts_at`), two controllers, eight
+Inertia pages, and four test files.
+
+Per explicit confirmation before starting: unfreeze is manual-only (no
+auto-resume date — `docs/ROADMAP.md` §2.3 lists that as later "expiry
+automation" scope), and the whole slice shipped together rather than
+split further.
+
+### What I tested
+
+Full Pest run of `tests/Feature/MembershipPlans`, `tests/Feature/Memberships`,
+`tests/Security/MembershipPlanTenantIsolationTest.php`, and
+`tests/Security/MembershipTenantIsolationTest.php`.
+
+### What passed
+
+All 29 on the first real run: assignment, date-range validation, every
+legal and illegal transition in the state machine (including both
+terminal states rejecting all further transitions), plan-level
+`freeze_allowed` gating, RBAC tiering (staff can freeze/unfreeze but not
+cancel), and both tenant-isolation cases — including a client or plan id
+from another organization being rejected at the FormRequest level, not
+just the model-lookup level.
+
+### What failed
+
+Nothing on the real run. (A static-only review pass beforehand — this
+sandbox can't run the project's actual PHP 8.4 toolchain — caught no
+issues either, syntax-lint clean across all 33 files.)
+
+### Database changes
+
+New `membership_plans` and `memberships` tables.
+
+### Security impact
+
+`client_id`/`membership_plan_id` on the assign form are validated via
+`Rule::exists(...)->where('organization_id', $organizationId)`, not a
+bare `exists:table,id` — an id that exists but belongs to another
+organization fails validation rather than silently creating a
+cross-tenant membership. Confirmed by test.
+
+### Decisions made
+
+`freeze_limit` is stored (per `DATABASE_SCHEMA.md` §6) but deliberately
+unenforced — only the on/off `freeze_allowed` gate is live. Cancel
+requires a reason (`cancellation_reason`, required); no other transition
+does. `membership_plans` has no `created_by` column, unlike Client/Service
+— matches the target schema doc exactly, not an oversight.
+
+### Next exact task
+
+Step 6 — Appointments. Not started.
+
+### Notes / blockers
+
+None outstanding.
+
+---
+
+## Session update — 2026-08-23 — Appointments (Step 6)
+
+### Date
+
+2026-08-23
+
+### What I changed
+
+Implemented Appointments: `appointments` migration, `Appointment` model,
+`AppointmentStatus` enum (deliberately just `Scheduled → Cancelled`,
+terminal — no "completed"/"no-show" state; whether an appointment
+actually happened is Attendance's job next step, tracked separately via
+check-in/check-out rather than by mutating the appointment),
+`AppointmentPolicy` (create/edit/cancel all at the general
+`canManageAppointments()` tier — appointments don't get Membership::cancel's
+elevated treatment, since cancelling a booking isn't ending a paid
+terminal commitment the way cancelling a membership is), three Actions,
+`Store`/`Update`/`CancelAppointmentRequest` (the first two share a
+`ValidatesAppointmentConflicts` trait doing the actual double-booking
+check), `AppointmentController`, three Inertia pages, and two test files.
+
+Two things confirmed before starting, since the docs had a real
+ambiguity: `employee_id` references `organization_members` (role=staff
+only), not a separate Employee table — there isn't one in the Phase 1 MVP
+entity list (`FOUNDATION.md`'s ~11-table list has no Employee row); and
+conflict validation blocks double-booking on **both** the staff member
+and the client side, not just staff.
+
+The index is a date-navigable day list, not a drag-and-drop calendar
+widget — `ROADMAP.md` §2.4 lists real scheduling depth (recurring
+appointments, staff/resource availability) as later scope, so a fuller
+calendar UI belongs there too.
+
+### What I tested
+
+Full Pest run of `tests/Feature/Appointments` + `tests/Security/AppointmentTenantIsolationTest.php`.
+
+### What passed
+
+15/16 on the first real run, 16/16 after one fix.
+
+### What failed
+
+`viewer can list appointments but cannot book, edit, or cancel them` —
+not an app bug. The test's pre-existing appointment and its forbidden
+POST/PATCH payload both used `AppointmentFactory`'s default time slot
+(tomorrow 10:00–11:00), so the conflict-validation trait rejected the
+request with a 422 *before* the controller ever reached
+`Gate::authorize` — masking the intended 403 behind a validation error.
+Fixed by moving the test's fixture appointment to a different day so the
+two requests stop colliding. The other 15 cases (including the staff/
+client conflict tests specifically targeting the trait) already proved
+the conflict logic itself was correct; this was purely a test-data
+collision.
+
+### Database changes
+
+New `appointments` table. Indexes on `(organization_id, employee_id,
+starts_at)` and `(organization_id, client_id, starts_at)` specifically to
+support the conflict-overlap queries.
+
+### Security impact
+
+Same `Rule::exists(...)->where('organization_id', ...)` pattern extended
+to `client_id`, `service_id`, and `employee_id` — plus `employee_id`
+additionally requires `role=staff` and `is_active=true`, so an Owner's or
+Admin's own membership row (which exists, and does belong to the right
+organization) still correctly fails as an invalid appointment assignee.
+Confirmed by test.
+
+### Decisions made
+
+Conflict check excludes cancelled appointments and, on update, the
+appointment being edited itself. Two ranges are only considered
+overlapping if they actually share time — appointments that merely touch
+at a boundary (one ends exactly when the next starts) do not conflict;
+confirmed by a dedicated test. Cancellation reason is optional (unlike
+Membership's required reason) — cancelling a booking is routine, not the
+higher-stakes step cancelling a paid membership is.
+
+### Next exact task
+
+Step 7 — Attendance. Not started. See "Next technical milestone" above.
+Open question to resolve before writing code, since the docs don't
+specify it: can a client have more than one open (checked-in, no
+check-out yet) attendance row at once, or does check-in reject if one's
+already open?
+
+### Notes / blockers
+
+None outstanding.
+
+---
+
+## Session update — 2026-08-24 — Attendance (Step 7)
+
+### Date
+
+2026-08-24
+
+### What I changed
+
+Implemented Attendance: `attendance` migration (singular table name,
+matching `DATABASE_SCHEMA.md` §8 exactly — `Attendance` model has an
+explicit `$table` override since Eloquent would otherwise pluralize to
+`attendances`), `Attendance` model with an `isOpen()` helper,
+`AttendanceFactory`, `OrganizationRole::canManageAttendance()`,
+`AttendancePolicy`, `CheckInAction` + `CheckOutAction`, `CheckInRequest`
+(tenant-scoped `client_id` validation), `AttendanceController`, one
+Inertia page, and two test files.
+
+Confirmed before starting: a client can only have one open (checked-in,
+no check-out yet) attendance row at a time — check-in rejects if one's
+already open, rather than allowing unlimited concurrent open sessions.
+This is exactly the case `TESTING.md` §8 names as "duplicate/open session
+behavior."
+
+Deliberately no create/edit pages — check-in is a single inline action
+(client picker + optional note) on the day-list index itself, and
+check-out is a one-click button on each open row. Matches the "manual
+history" scope in `ROADMAP.md`'s Step 7 feature list; there's nothing
+here that warrants the longer form Appointments needed.
+
+Also confirmed and worth keeping in mind for Step 8: Attendance has no
+`appointment_id` or `service_id` — it's deliberately decoupled from
+booking. A walk-in client who shows up without an appointment still gets
+checked in normally.
+
+### What I tested
+
+Full Pest run of `tests/Feature/Attendance` + `tests/Security/AttendanceTenantIsolationTest.php`.
+
+### What passed
+
+11/11 on the first real run: check-in, the duplicate/open-session
+rejection, re-check-in succeeding once the prior session is closed,
+check-out, rejecting a second check-out on an already-closed record,
+RBAC (staff can check in/out, viewer can list but not mutate), and both
+tenant-isolation cases (list scoping and cross-org client-id rejection at
+the FormRequest level).
+
+### What failed
+
+Nothing.
+
+### Database changes
+
+New `attendance` table (singular). Composite index on
+`(organization_id, client_id, check_out_at)` specifically to make the
+open-session lookup in `CheckInAction` cheap.
+
+### Security impact
+
+Same `Rule::exists(...)->where('organization_id', ...)` pattern applied
+to `client_id` on check-in. Confirmed by test that a client id from
+another organization is rejected at validation time, not just at the
+eventual model-lookup stage.
+
+### Decisions made
+
+"Open" is represented purely by `check_out_at IS NULL` — no separate
+status column, matching the target schema doc exactly. Enforced the
+one-open-session-per-client rule in the Action via a query, not a DB
+constraint, since "already has an open session" is a computed condition
+scoped to (organization, client), not a simple column-uniqueness rule a
+constraint could express directly.
+
+### Next exact task
+
+Step 8 — Payments. Not started. This is the last step in `FOUNDATION.md`
+§4's Phase 1 checklist — once it's green, Phase 1 is complete end-to-end.
+See "Next technical milestone" above for the full task breakdown,
+including the append-oriented/correction-not-edit requirement from
+`VELORA_SOURCE_OF_TRUTH.md` §2.4 that needs deciding before the migration
+is written.
+
+### Notes / blockers
+
+None outstanding.
