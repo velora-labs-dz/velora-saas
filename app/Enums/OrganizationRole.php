@@ -89,4 +89,13 @@ enum OrganizationRole: string
     {
         return $this !== self::Viewer;
     }
+
+    /**
+     * Same tier as canManageAppointments() — check-in/check-out are
+     * routine front-desk operations, not elevated actions.
+     */
+    public function canManageAttendance(): bool
+    {
+        return $this !== self::Viewer;
+    }
 }
