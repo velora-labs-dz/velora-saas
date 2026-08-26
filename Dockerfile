@@ -3,7 +3,7 @@
 # =========================
 # 1. PHP base
 # =========================
-FROM php:8.3-apache AS app
+FROM php:8.4-apache AS app
 
 WORKDIR /var/www/html
 
