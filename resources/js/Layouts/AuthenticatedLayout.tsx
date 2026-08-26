@@ -1,9 +1,29 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
+
+const NAV_ITEMS = [
+    { name: 'Dashboard', route: 'dashboard', match: 'dashboard' },
+    { name: 'Organizations', route: 'organizations.index', match: 'organizations.*' },
+    { name: 'Clients', route: 'clients.index', match: 'clients.*' },
+    { name: 'Services', route: 'services.index', match: 'services.*' },
+    { name: 'Plans', route: 'membership-plans.index', match: 'membership-plans.*' },
+    { name: 'Memberships', route: 'memberships.index', match: 'memberships.*' },
+    { name: 'Appointments', route: 'appointments.index', match: 'appointments.*' },
+    { name: 'Attendance', route: 'attendance.index', match: 'attendance.*' },
+    { name: 'Payments', route: 'payments.index', match: 'payments.*' },
+];
+
+function Wordmark() {
+    return (
+        <span className="font-serif text-2xl font-light tracking-tight text-ink">
+            Velora
+            <span className="text-gold">.</span>
+        </span>
+    );
+}
 
 export default function Authenticated({
     header,
@@ -11,265 +31,156 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode }>) {
     const user = usePage().props.auth.user;
 
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="border-b border-gray-100 bg-white">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
-                                </Link>
-                            </div>
+        <div className="min-h-screen bg-background">
+            {/* Desktop sidebar */}
+            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card lg:flex">
+                <div className="flex h-16 items-center border-b border-border px-6">
+                    <Link href="/">
+                        <Wordmark />
+                    </Link>
+                </div>
 
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
-                                >
-                                    Dashboard
-                                </NavLink>
-                                <NavLink
-                                    href={route('organizations.index')}
-                                    active={route().current('organizations.*')}
-                                >
-                                    Organizations
-                                </NavLink>
-                                <NavLink
-                                    href={route('clients.index')}
-                                    active={route().current('clients.*')}
-                                >
-                                    Clients
-                                </NavLink>
-                                <NavLink
-                                    href={route('services.index')}
-                                    active={route().current('services.*')}
-                                >
-                                    Services
-                                </NavLink>
-                                <NavLink
-                                    href={route('membership-plans.index')}
-                                    active={route().current('membership-plans.*')}
-                                >
-                                    Plans
-                                </NavLink>
-                                <NavLink
-                                    href={route('memberships.index')}
-                                    active={route().current('memberships.*')}
-                                >
-                                    Memberships
-                                </NavLink>
-                                <NavLink
-                                    href={route('appointments.index')}
-                                    active={route().current('appointments.*')}
-                                >
-                                    Appointments
-                                </NavLink>
-                                <NavLink
-                                    href={route('attendance.index')}
-                                    active={route().current('attendance.*')}
-                                >
-                                    Attendance
-                                </NavLink>
-                                <NavLink
-                                    href={route('payments.index')}
-                                    active={route().current('payments.*')}
-                                >
-                                    Payments
-                                </NavLink>
-                            </div>
-                        </div>
+                <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+                    {NAV_ITEMS.map((item) => (
+                        <NavLink
+                            key={item.route}
+                            href={route(item.route)}
+                            active={route().current(item.match)}
+                        >
+                            {item.name}
+                        </NavLink>
+                    ))}
+                </nav>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
-                            <div className="relative ms-3">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                                            >
-                                                {user.name}
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content>
-                                        <Dropdown.Link
-                                            href={route('profile.edit')}
-                                        >
-                                            Profile
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </Dropdown.Link>
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <div className="-me-2 flex items-center sm:hidden">
+                <div className="border-t border-border p-3">
+                    <Dropdown>
+                        <Dropdown.Trigger>
                             <button
-                                onClick={() =>
-                                    setShowingNavigationDropdown(
-                                        (previousState) => !previousState,
-                                    )
-                                }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                                type="button"
+                                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-start text-sm text-foreground transition duration-150 ease-in-out hover:bg-sand"
                             >
+                                <span className="truncate">{user.name}</span>
                                 <svg
-                                    className="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
+                                    className="ms-2 h-4 w-4 flex-shrink-0 text-muted-foreground"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
                                 >
                                     <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        className={
-                                            showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
+                                        fillRule="evenodd"
+                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                        clipRule="evenodd"
                                     />
                                 </svg>
                             </button>
-                        </div>
-                    </div>
-                </div>
+                        </Dropdown.Trigger>
 
-                <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
-                    }
-                >
-                    <div className="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
-                        >
-                            Dashboard
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('organizations.index')}
-                            active={route().current('organizations.*')}
-                        >
-                            Organizations
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('clients.index')}
-                            active={route().current('clients.*')}
-                        >
-                            Clients
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('services.index')}
-                            active={route().current('services.*')}
-                        >
-                            Services
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('membership-plans.index')}
-                            active={route().current('membership-plans.*')}
-                        >
-                            Plans
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('memberships.index')}
-                            active={route().current('memberships.*')}
-                        >
-                            Memberships
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('appointments.index')}
-                            active={route().current('appointments.*')}
-                        >
-                            Appointments
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('attendance.index')}
-                            active={route().current('attendance.*')}
-                        >
-                            Attendance
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('payments.index')}
-                            active={route().current('payments.*')}
-                        >
-                            Payments
-                        </ResponsiveNavLink>
-                    </div>
-
-                    <div className="border-t border-gray-200 pb-1 pt-4">
-                        <div className="px-4">
-                            <div className="text-base font-medium text-gray-800">
-                                {user.name}
-                            </div>
-                            <div className="text-sm font-medium text-gray-500">
-                                {user.email}
-                            </div>
-                        </div>
-
-                        <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
+                        <Dropdown.Content width="48" align="left">
+                            <Dropdown.Link href={route('profile.edit')}>
                                 Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
+                            </Dropdown.Link>
+                            <Dropdown.Link
                                 href={route('logout')}
+                                method="post"
                                 as="button"
                             >
                                 Log Out
-                            </ResponsiveNavLink>
+                            </Dropdown.Link>
+                        </Dropdown.Content>
+                    </Dropdown>
+                </div>
+            </aside>
+
+            {/* Mobile top bar */}
+            <div className="sticky top-0 z-30 border-b border-border bg-card lg:hidden">
+                <div className="flex h-16 items-center justify-between px-4">
+                    <Link href="/">
+                        <Wordmark />
+                    </Link>
+
+                    <button
+                        onClick={() => setMobileMenuOpen((v) => !v)}
+                        className="inline-flex items-center justify-center rounded-xl p-2 text-muted-foreground transition duration-150 ease-in-out hover:bg-sand hover:text-ink focus:outline-none"
+                    >
+                        <svg
+                            className="h-6 w-6"
+                            stroke="currentColor"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                className={!mobileMenuOpen ? 'inline-flex' : 'hidden'}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M4 6h16M4 12h16M4 18h16"
+                            />
+                            <path
+                                className={mobileMenuOpen ? 'inline-flex' : 'hidden'}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                {mobileMenuOpen && (
+                    <div className="border-t border-border pb-3 pt-2">
+                        <div className="space-y-1 px-2">
+                            {NAV_ITEMS.map((item) => (
+                                <ResponsiveNavLink
+                                    key={item.route}
+                                    href={route(item.route)}
+                                    active={route().current(item.match)}
+                                >
+                                    {item.name}
+                                </ResponsiveNavLink>
+                            ))}
+                        </div>
+
+                        <div className="mt-3 border-t border-border pt-3">
+                            <div className="px-4">
+                                <div className="text-base font-medium text-ink">
+                                    {user.name}
+                                </div>
+                                <div className="text-sm font-medium text-muted-foreground">
+                                    {user.email}
+                                </div>
+                            </div>
+
+                            <div className="mt-3 space-y-1">
+                                <ResponsiveNavLink href={route('profile.edit')}>
+                                    Profile
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    method="post"
+                                    href={route('logout')}
+                                    as="button"
+                                >
+                                    Log Out
+                                </ResponsiveNavLink>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </nav>
+                )}
+            </div>
 
-            {header && (
-                <header className="bg-white shadow">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
+            <div className="lg:pl-64">
+                {header && (
+                    <header className="border-b border-border bg-card">
+                        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            {header}
+                        </div>
+                    </header>
+                )}
 
-            <main>{children}</main>
+                <main>{children}</main>
+            </div>
         </div>
     );
 }

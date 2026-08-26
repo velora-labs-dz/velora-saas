@@ -1,5 +1,18 @@
 import { InertiaLinkProps, Link } from '@inertiajs/react';
 
+/**
+ * Styled as a vertical sidebar row, not a horizontal tab underline — the
+ * dashboard nav outgrew a top bar around the 7th/8th entity (Attendance,
+ * Payments), so the shell moved to a sidebar. Kept as NavLink rather than
+ * renamed since it's only ever consumed by AuthenticatedLayout.
+ *
+ * Hover deliberately changes text/border color only, not background —
+ * this project's color tokens are raw oklch() values (see app.css), which
+ * Tailwind 3's opacity modifiers (bg-x/40) can't apply an alpha channel
+ * to. Reserving the solid bg-sand fill for the true active state, rather
+ * than reaching for a faded variant on hover, keeps "which page am I on"
+ * unambiguous.
+ */
 export default function NavLink({
     active = false,
     className = '',
@@ -10,10 +23,11 @@ export default function NavLink({
         <Link
             {...props}
             className={
-                'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
+                'flex items-center rounded-xl border-l-2 px-3 py-2 text-sm font-medium transition duration-150 ease-in-out focus:outline-none ' +
                 (active
-                    ? 'border-indigo-400 text-gray-900 focus:border-indigo-700'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700') +
+                    ? 'border-gold bg-sand text-ink'
+                    : 'border-transparent text-muted-foreground hover:border-gold-soft hover:text-ink') +
+                ' ' +
                 className
             }
         >
