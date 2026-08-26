@@ -63,7 +63,7 @@ RUN composer install \
 # =========================
 # 7. Install frontend dependencies
 # =========================
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # =========================
 # 8. Copy application
